@@ -180,7 +180,7 @@
                         <th class="p-2 border border-gray-200 text-center">Qty</th>
                         <th class="p-2 border border-gray-200 text-right">Price/Unit</th>
                         <th class="p-2 border border-gray-200 text-right">Discount</th>
-                        <th class="p-2 border border-gray-200 text-right">GST (18%)</th>
+                        <th class="p-2 border border-gray-200 text-center">GST</th>
                         <th class="p-2 border border-gray-200 text-right">Amount</th>
                         <th class="p-2 border border-gray-200 no-print">Action</th>
                     </tr>
@@ -304,7 +304,9 @@
                     qty: 1, 
                     price: 3500, 
                     discount: 0, 
-                    discountPercent: 0 
+                    discountPercent: 0,
+                    gst:0,
+                    gstPercentage:0,
                 },
                 { 
                     description: "SSL Certificate (Domain Validated) - 256-bit Encryption with Trust Seal", 
@@ -312,7 +314,9 @@
                     qty: 1, 
                     price: 750, 
                     discount: 0, 
-                    discountPercent: 0 
+                    discountPercent: 0,
+                    gst:0,
+                    gstPercentage:0,
                 },
                 { 
                     description: "Responsive Website Design using Bootstrap 5 - Custom Design with 5 Pages including Home, About, Services, Portfolio and Contact", 
@@ -320,7 +324,9 @@
                     qty: 1, 
                     price: 20000, 
                     discount: 8000, 
-                    discountPercent: 40 
+                    discountPercent: 0,
+                    gst:0,
+                    gstPercentage:0,
                 }
             ];
 
@@ -441,11 +447,32 @@
                 </td>
                 <td class="p-2 border border-gray-200">
                     <div class="flex items-center justify-end">
+                        <span class="mr-1">₹</span>
                         <input type="number" class="item-discount-amt w-16 border-none bg-transparent text-right" value="${data ? data.discount.toFixed(2) : '0.00'}" min="0" step="0.01">
                         <span class="text-xs ml-1">(${data ? data.discountPercent : 0}%)</span>
                     </div>
                 </td>
-                <td class="p-2 border border-gray-200 text-right item-gst">₹0.00</td>
+               <td class="p-2 border border-gray-200 text-right">
+                <div class="flex flex-col items-center gap-1">
+                    <!-- Percentage -->
+                    <div class="flex items-center">
+                    <input
+                        type="number"
+                        class="item-gst-percent w-16 border-none bg-transparent text-right leading-none"
+                        value="${data ? data.gstPercentage : '0.00'}"
+                        min="0"
+                        step="0.01"
+                    />
+                    <span>%</span>
+                    </div>
+
+                    <!-- Rupees -->
+                    <div class="text-lg flex items-center gap-0.5">
+                    <span>₹</span>
+                    <span class='item-gst-amt'>${data ? data.gst : 0}</span>
+                    </div>
+                </div>
+                </td>
                 <td class="p-2 border border-gray-200 text-right item-amount">₹0.00</td>
                 <td class="p-2 border border-gray-200 text-center no-print">
                     <button class="text-red-500 delete-item">×</button>
@@ -458,6 +485,7 @@
             const qtyInput = tr.querySelector('.item-qty');
             const priceInput = tr.querySelector('.item-price');
             const discountInput = tr.querySelector('.item-discount-amt');
+            const gstInput = tr.querySelector('.item-gst-percent');
             const descTextarea = tr.querySelector('.item-desc');
             
             // Auto-resize textarea
@@ -467,7 +495,7 @@
                 calculateRow(tr);
             });
             
-            [qtyInput, priceInput, discountInput].forEach(input => {
+            [qtyInput, priceInput, discountInput,gstInput].forEach(input => {
                 input.addEventListener('input', function() {
                     calculateRow(tr);
                     calculateTotals();
@@ -491,10 +519,11 @@
             const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
             const price = parseFloat(row.querySelector('.item-price').value) || 0;
             const discount = parseFloat(row.querySelector('.item-discount-amt').value) || 0;
+            const gstPercentage=parseFloat(row.querySelector('.item-gst-percent').value) || 0;
             
             const subtotal = qty * price;
             const taxable = subtotal - discount;
-            const gst = taxable * 0.0;
+            const gst = taxable * gstPercentage/100;
             const amount = taxable + gst;
             
             // Update discount percentage
@@ -502,7 +531,7 @@
             row.querySelector('.item-discount-amt + span').textContent = `(${discountPercent}%)`;
             
             // Update displayed values
-            row.querySelector('.item-gst').textContent = '₹' + gst.toFixed(2);
+            row.querySelector('.item-gst-amt').textContent =gst;
             row.querySelector('.item-amount').textContent = '₹' + amount.toFixed(2);
         }
 
