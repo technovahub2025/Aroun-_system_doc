@@ -437,7 +437,9 @@
             
             tr.innerHTML = `
                 <td class="p-2 border border-gray-200 description-cell">
-                    <textarea class="item-desc w-full border-none bg-transparent whitespace-normal resize-none" rows="2">${data ? data.description : ''}</textarea>
+                <div class="item-desc w-full whitespace-normal" style="white-space: pre-wrap;">
+                    ${data ? data.description : ''}
+                </div>
                 </td>
                 <td class="p-2 border border-gray-200">
                     <input type="number" class="item-qty w-full border-none bg-transparent text-center" value="${data ? data.qty : 1}" min="1">
