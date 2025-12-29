@@ -206,11 +206,11 @@
                         <span id="total-discount">₹0.00</span>
                     </div>
                     <div class="flex justify-between py-1 border-b border-gray-200">
-                        <span class="font-semibold">CGST (9%)</span>
+                        <span class="font-semibold">CGST </span>
                         <span id="cgst">₹0.00</span>
                     </div>
                     <div class="flex justify-between py-1 border-b border-gray-200">
-                        <span class="font-semibold">SGST (9%)</span>
+                        <span class="font-semibold">SGST </span>
                         <span id="sgst">₹0.00</span>
                     </div>
                     <div class="flex justify-between py-1 border-b-2 border-blue-600 font-semibold">
@@ -458,7 +458,7 @@
                     <div class="flex items-center">
                     <input
                         type="number"
-                        class="item-gst-percent w-16 border-none bg-transparent text-right leading-none"
+                        class="item-gst-percent w-16 border-none bg-transparent text-right leading-none text-xl"
                         value="${data ? data.gstPercentage : '0.00'}"
                         min="0"
                         step="0.01"
@@ -547,10 +547,11 @@
                 const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
                 const price = parseFloat(row.querySelector('.item-price').value) || 0;
                 const discount = parseFloat(row.querySelector('.item-discount-amt').value) || 0;
+                const gstPercentage=parseFloat(row.querySelector('.item-gst-percent').value) || 0;
                 
                 const rowSubtotal = qty * price;
                 const taxable = rowSubtotal - discount;
-                const rowGst = taxable * 0.0;
+                const rowGst = taxable * gstPercentage/100;
                 const rowTotal = taxable + rowGst;
                 
                 subTotal += rowSubtotal;
@@ -626,79 +627,55 @@
         });
 
         // Download as PDF
-        document.getElementById('download-pdf').addEventListener('click', function() {
-            const element = document.getElementById('document');
-            const buttons = document.querySelectorAll('.no-print');
-            
-            // Hide buttons before capturing
-            buttons.forEach(btn => btn.style.display = 'none');
-            
-            // Set options for html2canvas
-             
-            const opt = {
-    scale: 2,
-    logging: false,
-    useCORS: true,
-    allowTaint: true,
-    letterRendering: true,
-    width: element.offsetWidth,
-    windowWidth: element.scrollWidth,
-    height: element.scrollHeight,
-    ignoreElements: function(element) {
-        // Ignore browser UI elements
-        return element.id === 'tab-bar' || element.className.includes('browser-chrome');
-    },
-    onclone: function(clonedDoc) {
-        // Remove any browser UI elements from the cloned document
-        const unwantedElements = clonedDoc.querySelectorAll('title, meta, link, script, style');
-        unwantedElements.forEach(el => el.remove());
-    }
-};
+   document.getElementById('download-pdf').addEventListener('click', async function () {
+    const element = document.getElementById('document');
+    const buttons = document.querySelectorAll('.no-print');
 
-            // Create a promise to ensure all fonts are loaded
-            const fontLoadPromise = document.fonts ? document.fonts.ready : Promise.resolve();
-            
-            fontLoadPromise.then(() => {
-                return html2canvas(element, opt);
-            }).then(canvas => {
-                // Show buttons again
-                buttons.forEach(btn => btn.style.display = '');
-                
-                const imgData = canvas.toDataURL('image/png');
-                const pdf = new jsPDF({
-                    orientation: 'portrait',
-                    unit: 'mm',
-                    format: 'a4'
-                });
-                
-                // Calculate image dimensions to fit A4
-                const imgWidth = 210; // A4 width in mm
-                const pageHeight = 297; // A4 height in mm
-                const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                
-                // Add first page
-                pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-                
-                // Add additional pages if content is too long
-                let heightLeft = imgHeight;
-                let position = 0;
-                const imgHeightOnPage = imgHeight;
-                
-                while (heightLeft >= 0) {
-                    position = heightLeft - imgHeightOnPage;
-                    pdf.addPage();
-                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                    heightLeft -= pageHeight;
-                }
-                
-                const docType = document.getElementById('document-type').value;
-                const docNumber = document.getElementById('display-document-number').textContent || 'document';
-                pdf.save(`${docType}-${docNumber}.pdf`);
-            }).catch(error => {
-                console.error('Error generating PDF:', error);
-                buttons.forEach(btn => btn.style.display = '');
-            });
-        });
+    // Hide buttons
+    buttons.forEach(btn => btn.style.display = 'none');
+
+    await (document.fonts ? document.fonts.ready : Promise.resolve());
+
+    const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+    });
+
+    // Show buttons again
+    buttons.forEach(btn => btn.style.display = '');
+
+    const imgData = canvas.toDataURL('image/png');
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+
+    const pageWidth = 210;
+    const pageHeight = 297;
+
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    // First page
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    // Additional pages
+    while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+    }
+
+    const docType = document.getElementById('document-type').value || 'document';
+    const docNumber = document.getElementById('display-document-number')?.textContent || '001';
+
+    pdf.save(`${docType}-${docNumber}.pdf`);
+});
     </script>
     <style>
 @media print {
