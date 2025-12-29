@@ -627,7 +627,7 @@
         });
 
         // Download as PDF
-   document.getElementById('download-pdf').addEventListener('click', async function () {
+document.getElementById('download-pdf').addEventListener('click', async function () {
     const element = document.getElementById('document');
     const buttons = document.querySelectorAll('.no-print');
 
@@ -646,29 +646,35 @@
     // Show buttons again
     buttons.forEach(btn => btn.style.display = '');
 
-    const imgData = canvas.toDataURL('image/png');
-
     const pdf = new jsPDF('p', 'mm', 'a4');
-
-    const pageWidth = 210;
-    const pageHeight = 297;
+    const pageWidth = 210; // A4 width in mm
+    const pageHeight = 297; // A4 height in mm
+    const topMargin = 10;
+    const bottomMargin = 20;
 
     const imgWidth = pageWidth;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-    let heightLeft = imgHeight;
-    let position = 0;
+    const usablePageHeight = pageHeight - topMargin - bottomMargin;
+    let yOffset = 0;
 
-    // First page
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
+    while (yOffset < canvas.height) {
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
 
-    // Additional pages
-    while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+        // Height of this page in pixels
+        const pageHeightPx = Math.min(canvas.height - yOffset, (usablePageHeight * canvas.width) / imgWidth);
+        pageCanvas.height = pageHeightPx;
+
+        const ctx = pageCanvas.getContext('2d');
+        ctx.drawImage(canvas, 0, yOffset, canvas.width, pageHeightPx, 0, 0, canvas.width, pageHeightPx);
+
+        const imgData = pageCanvas.toDataURL('image/png');
+
+        if (yOffset > 0) pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, topMargin, imgWidth, (pageHeightPx * imgWidth) / canvas.width);
+
+        yOffset += pageHeightPx;
     }
 
     const docType = document.getElementById('document-type').value || 'document';
@@ -676,7 +682,7 @@
 
     pdf.save(`${docType}-${docNumber}.pdf`);
 });
-    </script>
+</script>
     <style>
 @media print {
     @page {
