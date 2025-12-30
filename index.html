@@ -62,11 +62,25 @@
             width: 15%;
         }
         /* Textarea styling */
-        .item-desc {
-            resize: none;
-            min-height: 40px;
-            line-height: 1.4;
-        }
+       .item-desc {
+    resize: none;
+    overflow: hidden;
+    line-height: 1.4;
+}
+
+/* Print only shows div */
+@media print {
+    textarea.item-desc {
+        display: none !important;
+    }
+    .print-desc {
+        display: block !important;
+        white-space: pre-wrap;
+        font-size: 12px;
+        line-height: 1.4;
+    }
+}
+
     </style>
 </head>
 <body class="bg-gray-100 p-4">
@@ -275,6 +289,34 @@
         // Initialize jsPDF
         const { jsPDF } = window.jspdf;
 
+        function replaceTextareaWithDiv(enable) {
+    document.querySelectorAll('.description-cell').forEach(cell => {
+        const ta = cell.querySelector('textarea.item-desc');
+        const div = cell.querySelector('.print-desc');
+
+        if (enable) {
+            if (!ta || div) return;
+
+            const d = document.createElement('div');
+            d.className = 'print-desc w-full';
+            d.textContent = ta.value;   // FULL TEXT
+            ta.style.display = 'none';
+            cell.appendChild(d);
+        } else {
+            if (ta) ta.style.display = '';
+            if (div) div.remove();
+        }
+    });
+}
+window.addEventListener('beforeprint', () => {
+    replaceTextareaWithDiv(true);
+});
+
+window.addEventListener('afterprint', () => {
+    replaceTextareaWithDiv(false);
+});
+
+
         // Set today's date as default
         document.addEventListener('DOMContentLoaded', function() {
             const today = new Date();
@@ -437,10 +479,11 @@
             
             tr.innerHTML = `
                 <td class="p-2 border border-gray-200 description-cell">
-                <div class="item-desc w-full whitespace-normal" style="white-space: pre-wrap;">
-                    ${data ? data.description : ''}
-                </div>
-                </td>
+    <textarea class="item-desc w-full" rows="4">
+${data ? data.description : ''}
+    </textarea>
+</td>
+
                 <td class="p-2 border border-gray-200">
                     <input type="number" class="item-qty w-full border-none bg-transparent text-center" value="${data ? data.qty : 1}" min="1">
                 </td>
@@ -633,57 +676,87 @@ document.getElementById('download-pdf').addEventListener('click', async function
     const element = document.getElementById('document');
     const buttons = document.querySelectorAll('.no-print');
 
-    // Hide buttons
-    buttons.forEach(btn => btn.style.display = 'none');
+    // 🔥 Replace textarea with div so full text renders
+    replaceTextareaWithDiv(true);
 
+    buttons.forEach(b => b.style.display = 'none');
     await (document.fonts ? document.fonts.ready : Promise.resolve());
 
     const canvas = await html2canvas(element, {
         scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        useCORS: true
     });
 
-    // Show buttons again
-    buttons.forEach(btn => btn.style.display = '');
+    buttons.forEach(b => b.style.display = '');
+    replaceTextareaWithDiv(false);
 
     const pdf = new jsPDF('p', 'mm', 'a4');
-    const pageWidth = 210; // A4 width in mm
-    const pageHeight = 297; // A4 height in mm
-    const topMargin = 10;
-    const bottomMargin = 20;
 
+    // 📄 Page size
+    const pageWidth = 210;
+    const pageHeight = 297;
+
+    // 🔽 ONLY bottom margin (CHANGE THIS)
+    const marginBottom = 30; // mm
+
+    // Usable height
+    const usableHeight = pageHeight - marginBottom;
+
+    // Image scaling
     const imgWidth = pageWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    const scale = imgWidth / canvas.width;
 
-    const usablePageHeight = pageHeight - topMargin - bottomMargin;
-    let yOffset = 0;
+    let yOffsetPx = 0;
+    let pageIndex = 0;
 
-    while (yOffset < canvas.height) {
+    while (yOffsetPx < canvas.height) {
         const pageCanvas = document.createElement('canvas');
         pageCanvas.width = canvas.width;
 
-        // Height of this page in pixels
-        const pageHeightPx = Math.min(canvas.height - yOffset, (usablePageHeight * canvas.width) / imgWidth);
+        const pageHeightPx = Math.min(
+            canvas.height - yOffsetPx,
+            usableHeight / scale
+        );
+
         pageCanvas.height = pageHeightPx;
 
         const ctx = pageCanvas.getContext('2d');
-        ctx.drawImage(canvas, 0, yOffset, canvas.width, pageHeightPx, 0, 0, canvas.width, pageHeightPx);
+        ctx.drawImage(
+            canvas,
+            0,
+            yOffsetPx,
+            canvas.width,
+            pageHeightPx,
+            0,
+            0,
+            canvas.width,
+            pageHeightPx
+        );
 
         const imgData = pageCanvas.toDataURL('image/png');
 
-        if (yOffset > 0) pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, topMargin, imgWidth, (pageHeightPx * imgWidth) / canvas.width);
+        if (pageIndex > 0) pdf.addPage();
 
-        yOffset += pageHeightPx;
+        // ⬆️ Draw from top (0), bottom margin stays empty
+        pdf.addImage(
+            imgData,
+            'PNG',
+            0,
+            0,
+            imgWidth,
+            pageHeightPx * scale
+        );
+
+        yOffsetPx += pageHeightPx;
+        pageIndex++;
     }
 
-    const docType = document.getElementById('document-type').value || 'document';
-    const docNumber = document.getElementById('display-document-number')?.textContent || '001';
-
-    pdf.save(`${docType}-${docNumber}.pdf`);
+    pdf.save('document.pdf');
 });
+
+
+
 </script>
     <style>
 @media print {
